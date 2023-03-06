@@ -7,23 +7,23 @@ import { ERROR_MESSAGE } from "../utils/constants.js";
 import {
   getLocalStorage,
   setLocalStorage,
-  validateChargerInput,
   validateManagerInputs,
 } from "../utils/utils.js";
+import ChangeChargerView from "../view/changeCharger.js";
+import ProductManagerView from "../view/productManager.js";
+import ProductPurchaseView from "../view/productPurchase";
 
 class VendingMachineController {
   #currentModel;
   #models;
-  #handlers;
+  #submitFormHandlers;
 
   constructor() {
     this.currentMenu = getLocalStorage("menu") || "manager";
 
-    const $menu = $("#menu");
-    const $menuItem = $(`#menu button[name=${this.currentMenu}]`);
-    const managerModel = new ProductManagerModel();
-    const chargerModel = new ChangeChargerModel();
-    const purchaseModel = new ProductPurchaseModel();
+    const managerModel = new ProductManagerModel(new ProductManagerView());
+    const chargerModel = new ChangeChargerModel(new ChangeChargerView());
+    const purchaseModel = new ProductPurchaseModel(new ProductPurchaseView());
 
     this.#models = {
       manager: managerModel,
@@ -31,7 +31,8 @@ class VendingMachineController {
       purchase: purchaseModel,
     };
     this.#currentModel = this.#models[this.currentMenu];
-    this.#handlers = {
+
+    this.#submitFormHandlers = {
       manager: () => {
         const $form = $("#product-manager-form");
         $form.addEventListener("submit", this.submitManagerForm.bind(this));
@@ -42,46 +43,39 @@ class VendingMachineController {
       },
       purchase: () => {},
     };
-
-    this.#currentModel.initialize();
-    this.#handlers[this.currentMenu]();
-
-    $menuItem.classList.add("active");
-    $menu.addEventListener("click", this.menuHandler.bind(this));
   }
 
   submitChargerForm(e) {
     e.preventDefault();
-    const chargingInput = $(".charger-input");
     try {
-      validateChargerInput(chargingInput.value);
-      this.#currentModel.setState("totalAmount", Number(chargingInput.value));
+      this.#currentModel.setState("totalAmount", e);
     } catch (err) {
+      if (err.message === ERROR_MESSAGE.INVALID_STATE) return;
+
       alert(err.message);
-      chargingInput.focus();
+      e.target[err.from].focus();
     }
   }
 
   submitManagerForm(e) {
     e.preventDefault();
-    let currentInput;
     try {
       const $$inputs = $$(".product-input");
-      const newState = {};
-      $$inputs.forEach((input) => {
-        currentInput = input;
+      const inputState = Array.from($$inputs).reduce((accState, input) => {
+        const { name, value } = input;
 
-        const { name, value } = currentInput;
+        validateManagerInputs[name](value, name);
 
-        validateManagerInputs[name](value);
+        return {
+          ...accState,
+          [name]: value,
+        };
+      }, {});
 
-        newState[input.name] = input.value;
-      });
-
-      this.#currentModel.setState("products", newState);
+      this.#currentModel.setState("products", inputState);
     } catch (err) {
       alert(err.message);
-      currentInput.focus();
+      e.target[err.from].focus();
     }
   }
 
@@ -91,18 +85,18 @@ class VendingMachineController {
     if (isMenuButton === false) return;
 
     try {
-      this.validateMenu(target);
+      this.validateMenu(target.name);
       this.changeMenu(target);
-      this.changeView(target);
+      this.initializeBasedOnChangedMenu(target.name);
     } catch (err) {
       console.error(err);
     }
   }
 
-  validateMenu($target) {
-    const isMenu = Object.keys(this.#models).includes($target.name);
+  validateMenu(menuName) {
+    const hasMenu = Object.keys(this.#models).includes(menuName);
 
-    if (isMenu === false) {
+    if (hasMenu === false) {
       alert(ERROR_MESSAGE.INVALID_MENU);
       throw new ValidationError(ERROR_MESSAGE.INVALID_MENU);
     }
@@ -122,9 +116,19 @@ class VendingMachineController {
     setLocalStorage("menu", this.currentMenu);
   }
 
-  changeView($target) {
-    this.#models[$target.name].initialize();
-    this.#handlers[$target.name]();
+  initializeBasedOnChangedMenu() {
+    this.#currentModel.initialize();
+    this.#submitFormHandlers[this.currentMenu]();
+  }
+
+  bindEventHandlers() {
+    this.#submitFormHandlers[this.currentMenu]();
+    $("#menu").addEventListener("click", this.menuHandler.bind(this));
+  }
+
+  initialize() {
+    this.#currentModel.initialize();
+    this.bindEventHandlers();
   }
 }
 

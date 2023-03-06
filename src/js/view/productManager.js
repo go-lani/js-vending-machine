@@ -3,25 +3,18 @@ import {
   createProductInventoryItem,
   createTemplateElement,
 } from "../utils/templates.js";
-import { $, $$ } from "../utils/selector.js";
+import { $ } from "../utils/selector.js";
+import { clearForm } from "../utils/utils.js";
 
 class ProductManagerView extends View {
   constructor() {
     super("manager");
   }
 
-  clearForm() {
-    const $$inputs = $$(".product-input");
-    $$inputs.forEach((input) => {
-      input.value = "";
-    });
-    $$inputs[0].focus();
-  }
-
-  renderInventoryContainer(newState) {
+  renderInventoryContainer(state) {
     const $productTable = $("#product-inventory-container");
 
-    const createProductInventoryItems = newState.reduce((acc, pre) => {
+    const createProductInventoryItems = state.products.reduce((acc, pre) => {
       acc += createProductInventoryItem(pre);
       return acc;
     }, "");
@@ -33,7 +26,12 @@ class ProductManagerView extends View {
 
   update(newState) {
     this.renderInventoryContainer(newState);
-    this.clearForm();
+    clearForm("#product-manager-form");
+  }
+
+  render(currentState) {
+    super.render();
+    this.renderInventoryContainer(currentState);
   }
 }
 

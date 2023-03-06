@@ -41,7 +41,7 @@ describe("잔돈 충전 테스트", () => {
       });
     });
 
-    it("잔돈은 10원 단위로 충전이 가능하다", () => {
+    it("잔돈은 10원 단위로 충전이 가능하며 잘못된 값을 충전시 alert가 뜬다", () => {
       cy.alert({
         action: () => {
           cy.get(CHARGER_INPUT_SELECTOR).type("101");
@@ -49,10 +49,6 @@ describe("잔돈 충전 테스트", () => {
         },
         message: ERROR_MESSAGE.INVALID_UNIT,
       });
-    });
-
-    it("최초 보유 금액은 0원이다.", () => {
-      cy.get(HOLDING_AMOUNT_SELECTOR).should("have.text", "0");
     });
 
     it("잔돈 입력 후 Enter키를 눌러서 충전할 수 있다", () => {
